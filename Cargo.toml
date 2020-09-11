@@ -34,3 +34,15 @@ features = ["derive"]
 [dependencies.tokio]
 version = "0.2"
 features = ["macros", "time"]
+
+[package.metadata.rpm]
+package = "docuum"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+docuum = { path = "/usr/bin/docuum" }
+
+[package.metadata.rpm.files]
+"scripts/docuum.service" = { path = "/lib/systemd/system/docuum.service" }

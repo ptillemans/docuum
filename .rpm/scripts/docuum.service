@@ -1,0 +1,8 @@
+[Unit]
+Description="Docuum LRU Docker image cache manager"
+
+[Service]
+ExecStart=/usr/bin/docuum
+
+[Install]
+WantedBy=docker.service
