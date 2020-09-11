@@ -45,4 +45,4 @@ buildflags = ["--release"]
 docuum = { path = "/usr/bin/docuum" }
 
 [package.metadata.rpm.files]
-"scripts/docuum.service" = { path = "/lib/systemd/system/docuum.service" }
+"scripts/docuum.service" = { path = "/usr/lib/systemd/system/docuum.service" }

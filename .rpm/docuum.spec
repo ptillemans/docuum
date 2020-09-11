@@ -11,6 +11,8 @@ Group: Applications/System
 Source0: %{name}-%{version}.tar.gz
 URL: https://github.com/stepchowfun/docuum
 
+BuildRequires: systemd, systemd-rpm-macros
+
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 %description
@@ -39,5 +41,5 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{_bindir}/*
-/lib/systemd/system
+%{_unitdir}/*
 
