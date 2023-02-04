@@ -32,5 +32,5 @@ version = "1"
 features = ["derive"]
 
 [dependencies.tokio]
-version = "0.2"
+version = "1.13"
 features = ["macros", "time"]
