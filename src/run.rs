@@ -13,25 +13,23 @@ use byte_unit::Byte;
 use std::{
     collections::{HashMap, HashSet},
     convert::TryInto,
-    io,
+    io::{self, Error},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::stream::StreamExt;
+use tokio_stream::StreamExt;
 
 // Ask Docker for the ID of an image.
 pub async fn image_id(docker: &Docker, image: &str) -> io::Result<String> {
-    let output = docker.inspect_image(image).await.map_err(|error| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "Unable to determine ID of image {}: {:?}.",
-                image.code_str(),
-                error
-            ),
-        )
-    })?;
-
-    Ok(output.id)
+    docker.inspect_image(image).await
+        .map(|image| image.id.unwrap())
+        .map_err(|error| Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Unable to determine ID of image {}: {:?}.",
+                    image.code_str(),
+                    error)
+                )
+            )
 }
 
 // Ask Docker for the IDs and creation timestamps of all the images.
@@ -45,7 +43,7 @@ pub async fn image_ids_and_creation_timestamps(
         }))
         .await
         .map_err(|error| {
-            io::Error::new(
+            Error::new(
                 io::ErrorKind::Other,
                 format!("Unable to determine IDs of all images: {:?}.", error),
             )
@@ -56,7 +54,7 @@ pub async fn image_ids_and_creation_timestamps(
     for image in output {
         match image.created.try_into() {
             Ok(created) => images.insert(image.id, Duration::from_secs(created)),
-            Err(error) => return Err(io::Error::new(io::ErrorKind::Other, error)),
+            Err(error) => return Err(Error::new(io::ErrorKind::Other, error)),
         };
     }
 
@@ -72,7 +70,7 @@ pub async fn image_ids_in_use(docker: &Docker) -> io::Result<HashSet<String>> {
         }))
         .await
         .map_err(|error| {
-            io::Error::new(
+            Error::new(
                 io::ErrorKind::Other,
                 format!(
                     "Unable to determine IDs of images currently in use by containers: {:?}.",
@@ -90,7 +88,7 @@ pub async fn image_ids_in_use(docker: &Docker) -> io::Result<HashSet<String>> {
 // Get the total space used by Docker images.
 async fn space_usage(docker: &Docker) -> io::Result<Byte> {
     let output = docker.df().await.map_err(|error| {
-        io::Error::new(
+        Error::new(
             io::ErrorKind::Other,
             format!(
                 "Unable to determine the disk space used by Docker images: {:?}.",
@@ -123,7 +121,7 @@ async fn delete_image(docker: &Docker, image_id: &str) -> io::Result<()> {
         )
         .await
     {
-        return Err(io::Error::new(
+        return Err(Error::new(
             io::ErrorKind::Other,
             format!(
                 "Unable to delete image {}: {:?}.",
@@ -155,7 +153,7 @@ fn update_timestamp(state: &mut State, image_id: &str, verbose: bool) -> io::Res
             state.images.insert(image_id.to_owned(), duration);
             Ok(())
         }
-        Err(error) => Err(io::Error::new(io::ErrorKind::Other, error)),
+        Err(error) => Err(Error::new(io::ErrorKind::Other, error)),
     }
 }
 
@@ -256,7 +254,7 @@ async fn vacuum(docker: &Docker, state: &mut State, threshold: &Byte) -> io::Res
 // Stream Docker events and vacuum when necessary.
 pub async fn run(settings: &Settings, state: &mut State) -> io::Result<()> {
     let docker = Docker::connect_with_local_defaults().map_err(|error| {
-        io::Error::new(
+        Error::new(
             io::ErrorKind::Other,
             format!("Unable to connect to Docker: {:?}.", error),
         )
@@ -273,7 +271,7 @@ pub async fn run(settings: &Settings, state: &mut State) -> io::Result<()> {
             None => break,
         }
         .map_err(|error| {
-            io::Error::new(
+            Error::new(
                 io::ErrorKind::Other,
                 format!("Unable to read Docker events: {:?}.", error),
             )
@@ -285,7 +283,7 @@ pub async fn run(settings: &Settings, state: &mut State) -> io::Result<()> {
         // `_type` instead of `r#type` or `type_`. See
         // https://github.com/fussybeaver/bollard/issues/87 for details.
         #[allow(clippy::used_underscore_binding)]
-        let (r#type, action) = match (event._type, event.action) {
+        let (r#type, action) = match (event.typ, event.action) {
             (Some(r#type), Some(action)) => (r#type, action),
             _ => continue,
         };
@@ -293,7 +291,7 @@ pub async fn run(settings: &Settings, state: &mut State) -> io::Result<()> {
         // Get the ID of the image.
         let image_id = image_id(
             &docker,
-            &match (r#type.as_str(), action.as_str()) {
+            &match (r#type.as_ref(), action.as_str()) {
                 ("container", "destroy") => {
                     if let Some(image_name) = event
                         .actor
@@ -335,7 +333,7 @@ pub async fn run(settings: &Settings, state: &mut State) -> io::Result<()> {
     }
 
     // The `for` loop above will only terminate if something happened to `docker events`.
-    Err(io::Error::new(
+    Err(Error::new(
         io::ErrorKind::Other,
         format!("{} unexpectedly terminated.", "docker events".code_str()),
     ))

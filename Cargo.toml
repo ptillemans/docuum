@@ -14,14 +14,15 @@ readme = "README.md"
 
 [dependencies]
 atty = "0.2"
-bollard = "0.7.2"
-byte-unit = "3.0"
+bollard = "0.14"
+byte-unit = "4.0.19"
 chrono = "0.4"
-colored = "1"
-dirs = "1"
-env_logger = "0.6"
+colored = "2"
+dirs = "5"
+env_logger = "0.10"
 log = "0.4"
-serde_yaml = "0.8"
+serde_yaml = "0.9"
+tokio-stream = "0.1.14"
 
 [dependencies.clap]
 version = "2"
@@ -32,5 +33,5 @@ version = "1"
 features = ["derive"]
 
 [dependencies.tokio]
-version = "0.2"
-features = ["macros", "time"]
+version = "1"
+features = ["full"]

@@ -2,8 +2,7 @@ mod format;
 mod run;
 mod state;
 
-use crate::{format::CodeStr, run::run};
-use atty::Stream;
+use crate::format::CodeStr;
 use byte_unit::Byte;
 use chrono::Local;
 use clap::{App, AppSettings, Arg};
@@ -12,11 +11,9 @@ use log::{Level, LevelFilter};
 use std::{
     env,
     io::{self, Write},
-    process::exit,
-    str::FromStr,
-    time::Duration,
+    str::FromStr, time::Duration,
 };
-use tokio::time::delay_for;
+use tokio::time::sleep;
 
 #[macro_use]
 extern crate log;
@@ -123,38 +120,39 @@ fn settings() -> io::Result<Settings> {
 // Let the fun begin!
 async fn main() {
     // Determine whether to print colored output.
-    colored::control::set_override(atty::is(Stream::Stderr));
+    colored::control::set_override(atty::is(atty::Stream::Stderr));
 
     // Set up the logger.
     set_up_logging();
 
     // Parse the command-line arguments.
-    let settings = match settings() {
-        Ok(settings) => settings,
-        Err(error) => {
-            error!("{}", error);
-            exit(1);
-        }
-    };
+    match settings() {
+        Ok(settings) => {
+            // Try to load the state from disk.
+            let mut state = state::load().unwrap_or_else(|error| {
+                // We couldn't load any state from disk. Log the error.
+                debug!(
+                    "Unable to load state from disk. Proceeding with initial state. Details: {}",
+                    error.to_string().code_str()
+                );
 
-    // Try to load the state from disk.
-    let mut state = state::load().unwrap_or_else(|error| {
-        // We couldn't load any state from disk. Log the error.
-        debug!(
-            "Unable to load state from disk. Proceeding with initial state. Details: {}",
-            error.to_string().code_str()
-        );
+                // Start with the initial state.
+                state::initial()
+            });
 
-        // Start with the initial state.
-        state::initial()
-    });
-
-    // Stream Docker events and vacuum when necessary. Restart if an error occurs.
-    loop {
-        if let Err(e) = run(&settings, &mut state).await {
-            error!("{}", e);
-            info!("Restarting\u{2026}");
-            delay_for(Duration::from_secs(1)).await;
+            // Stream Docker events and vacuum when necessary. Restart if an error occurs.
+            loop {
+                if let Err(e) = run::run(&settings, &mut state).await {
+                    error!("{}", e);
+                    info!("Restarting\u{2026}");
+                    sleep(Duration::from_secs(1)).await;
+                }
+            }
+        },
+            Err(error) => {
+                error!("{}", error);
+                std::process::exit(1);
         }
     }
+
 }
