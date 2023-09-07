@@ -13,7 +13,6 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-atty = "0.2"
 bollard = "0.14"
 byte-unit = "4.0.19"
 chrono = "0.4"
@@ -25,7 +24,7 @@ serde_yaml = "0.9"
 tokio-stream = "0.1.14"
 
 [dependencies.clap]
-version = "2"
+version = "4"
 features = ["wrap_help"]
 
 [dependencies.serde]

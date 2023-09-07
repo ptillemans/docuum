@@ -5,12 +5,12 @@ mod state;
 use crate::format::CodeStr;
 use byte_unit::Byte;
 use chrono::Local;
-use clap::{App, AppSettings, Arg};
+use clap::{Command, arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
 use std::{
     env,
-    io::{self, Write},
+    io::{self, Write, IsTerminal, stderr},
     str::FromStr, time::Duration,
 };
 use tokio::time::sleep;
@@ -24,9 +24,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 // Defaults
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 const DEFAULT_THRESHOLD: &str = "10 GB";
-
-// Command-line argument and option names
-const THRESHOLD_ARG: &str = "threshold";
 
 // This struct represents the command-line arguments.
 pub struct Settings {
@@ -78,49 +75,26 @@ fn set_up_logging() {
 // Parse the command-line arguments.
 fn settings() -> io::Result<Settings> {
     // Set up the command-line interface.
-    let matches = App::new("Docuum")
+    let matches = Command::new("Docuum")
         .version(VERSION)
-        .version_short("v")
         .author("Stephan Boyer <stephan@stephanboyer.com>")
         .about("Docuum performs LRU cache eviction for Docker images.")
-        .setting(AppSettings::ColoredHelp)
-        .setting(AppSettings::NextLineHelp)
-        .setting(AppSettings::UnifiedHelpMessage)
-        .arg(
-            Arg::with_name(THRESHOLD_ARG)
-                .short("t")
-                .long(THRESHOLD_ARG)
-                .value_name("THRESHOLD")
-                .help(&format!(
-                    "Sets the maximum amount of space to be used for Docker images (default: {})",
-                    DEFAULT_THRESHOLD.code_str()
-                ))
-                .takes_value(true),
-        )
+        .arg(arg!(--threshold <VALUE>))
         .get_matches();
 
     // Read the threshold.
     let default_threshold = Byte::from_str(DEFAULT_THRESHOLD).unwrap(); // Manually verified safe
-    let threshold = matches.value_of(THRESHOLD_ARG).map_or_else(
-        || Ok(default_threshold),
-        |threshold| {
-            Byte::from_str(threshold).map_err(|_| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Invalid threshold {}.", threshold.code_str()),
-                )
-            })
-        },
-    )?;
-
-    Ok(Settings { threshold })
+    matches.get_one::<Byte>("threshold")
+        .or_else(|| Some(&default_threshold))
+        .map(|threshold| Settings{ threshold: threshold.to_owned() })
+        .ok_or( io::Error::new( io::ErrorKind::Other, "Invalid threshold {}."))
 }
 
 #[tokio::main]
 // Let the fun begin!
 async fn main() {
     // Determine whether to print colored output.
-    colored::control::set_override(atty::is(atty::Stream::Stderr));
+    colored::control::set_override(stderr().is_terminal());
 
     // Set up the logger.
     set_up_logging();
