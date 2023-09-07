@@ -4,10 +4,10 @@ mod state;
 
 use crate::format::CodeStr;
 use byte_unit::Byte;
-use chrono::Local;
 use clap::{Command, arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
+use time::{OffsetDateTime, format_description};
 use std::{
     env,
     io::{self, Write, IsTerminal, stderr},
@@ -57,13 +57,13 @@ fn set_up_logging() {
                     style.set_color(Color::Blue);
                 }
             }
-
+            let date_format = format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour]:[offset_minute]").unwrap();
             writeln!(
                 buf,
                 "{} {}",
                 style.value(format!(
                     "[{} {}]",
-                    Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string(),
+                    OffsetDateTime::now_utc().format(&date_format).unwrap(),
                     record.level()
                 )),
                 record.args().to_string()

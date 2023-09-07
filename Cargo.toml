@@ -15,7 +15,6 @@ readme = "README.md"
 [dependencies]
 bollard = "0.14"
 byte-unit = "4.0.19"
-chrono = "0.4"
 colored = "2"
 dirs = "5"
 env_logger = "0.10"
@@ -34,3 +33,7 @@ features = ["derive"]
 [dependencies.tokio]
 version = "1"
 features = ["full"]
+
+[dependencies.time]
+version = "0.3"
+features = ["formatting", "std", "local-offset"]
